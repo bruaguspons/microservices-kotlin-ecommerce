@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      metrics:
+        enabled: true
+
+server:
+  port: 8080
+
+gateway:
+  services:
+    product-service-base-url: ${PRODUCT_SERVICE_BASE_URL:http://localhost:8081}
+    cart-service-base-url: ${CART_SERVICE_BASE_URL:http://localhost:8082}
+    user-service-base-url: ${USER_SERVICE_BASE_URL:http://localhost:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

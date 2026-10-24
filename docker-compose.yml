@@ -1,0 +1,191 @@
+secrets:
+  jwt_private_key:
+    file: ./secrets/jwt_private_key.pem
+
+services:
+  product-db:
+    image: postgres:16-alpine
+    container_name: product-db
+    environment:
+      POSTGRES_USER: product_user
+      POSTGRES_PASSWORD: product_password
+      POSTGRES_DB: product_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - product_db_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U product_user -d product_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  cart-db:
+    image: postgres:16-alpine
+    container_name: cart-db
+    environment:
+      POSTGRES_USER: cart_user
+      POSTGRES_PASSWORD: cart_password
+      POSTGRES_DB: cart_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - cart_db_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cart_user -d cart_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_USER: user_user
+      POSTGRES_PASSWORD: user_password
+      POSTGRES_DB: user_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - user_db_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user_user -d user_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_volume:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+    container_name: product-service
+    depends_on:
+      product-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://product-db:5432/product_db
+      DB_USER: product_user
+      DB_PASSWORD: product_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      JWT_JWKS_URI: http://user-service:8083/.well-known/jwks.json
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8081/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  cart-service:
+    build:
+      context: .
+      dockerfile: services/cart-service/Dockerfile
+    container_name: cart-service
+    depends_on:
+      cart-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://cart-db:5432/cart_db
+      DB_USER: cart_user
+      DB_PASSWORD: cart_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      JWT_JWKS_URI: http://user-service:8083/.well-known/jwks.json
+      PRODUCT_SERVICE_BASE_URL: http://product-service:8081
+      USER_SERVICE_BASE_URL: http://user-service:8083
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8082/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    container_name: user-service
+    depends_on:
+      user-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/user_db
+      DB_USER: user_user
+      DB_PASSWORD: user_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      JWT_JWKS_URI: http://localhost:8083/.well-known/jwks.json
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key
+    secrets:
+      - jwt_private_key
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8083/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      product-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    environment:
+      PRODUCT_SERVICE_BASE_URL: http://product-service:8081
+      CART_SERVICE_BASE_URL: http://cart-service:8082
+      USER_SERVICE_BASE_URL: http://user-service:8083
+    ports:
+      - "8080:8080"
+
+volumes:
+  product_db_volume:
+  cart_db_volume:
+  user_db_volume:
+  rabbitmq_volume:

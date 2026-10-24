@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: dev
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+server:
+  port: 8083
+
+app:
+  security:
+    jwt:
+      expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+
+jwt:
+  # Own JWKS endpoint: user-service verifies incoming requests to its own
+  # protected routes (e.g. /api/users/{id}) the same way product-service /
+  # cart-service verify tokens issued by this service.
+  jwks-uri: ${JWT_JWKS_URI:http://localhost:8083/.well-known/jwks.json}
+  # RSA signing key user-service uses to ISSUE tokens (separate concern from
+  # jwks-uri above, which is for verifying INCOMING requests). Unset locally
+  # -> JwtKeyProvider generates an ephemeral keypair; set in Docker Compose
+  # to the mounted jwt_private_key secret path.
+  private-key-path: ${JWT_PRIVATE_KEY_PATH:}
+  key-id: ${JWT_KEY_ID:user-service-key-1}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:userdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://user-db:5432/user_db
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:user_user}
+    password: ${DB_PASSWORD:user_password}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

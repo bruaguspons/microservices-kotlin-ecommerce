@@ -1,0 +1,101 @@
+spring:
+  application:
+    name: cart-service
+  profiles:
+    active: dev
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+server:
+  port: 8082
+
+jwt:
+  jwks-uri: ${JWT_JWKS_URI:http://localhost:8083/.well-known/jwks.json}
+
+product-service:
+  base-url: ${PRODUCT_SERVICE_BASE_URL:http://localhost:8081}
+
+user-service:
+  base-url: ${USER_SERVICE_BASE_URL:http://localhost:8083}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      product-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        ignore-exceptions:
+          - com.example.ecommerce.cart.application.exception.ProductNotFoundException
+      user-service:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        ignore-exceptions:
+          - com.example.ecommerce.cart.application.exception.UserNotFoundException
+  retry:
+    instances:
+      product-service:
+        max-attempts: 3
+        wait-duration: 100ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        ignore-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
+      user-service:
+        max-attempts: 3
+        wait-duration: 100ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        ignore-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:cartdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://cart-db:5432/cart_db
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:cart_user}
+    password: ${DB_PASSWORD:cart_password}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
