@@ -3,6 +3,7 @@ package com.example.ecommerce.cart.infrastructure.api
 import com.example.ecommerce.cart.application.dto.command.CreateShoppingCartDTO
 import com.example.ecommerce.cart.application.dto.result.ShoppingCartResultDTO
 import com.example.ecommerce.cart.application.port.`in`.ShoppingCartServicePort
+import com.example.ecommerce.cart.domain.valueobject.ShoppingCartId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.UUID
 
 @RestController
 @RequestMapping("/api/shopping-carts")
@@ -25,8 +25,8 @@ class ShoppingCartController(
 
     @Operation(summary = "Get shopping cart by id", description = "Returns a single shopping cart (with its line items) by its id. Requires ownership of the cart or the ADMIN role.")
     @GetMapping("/{id}")
-    fun findById(@PathVariable id: UUID): ResponseEntity<ShoppingCartResultDTO> =
-        ResponseEntity.ok(shoppingCartService.findById(id))
+    fun findById(@PathVariable id: ShoppingCartId): ResponseEntity<ShoppingCartResultDTO> =
+        ResponseEntity.ok(shoppingCartService.findById(id.value))
 
     @Operation(summary = "List all shopping carts", description = "Returns the full, unpaginated list of every shopping cart in the system. Admin only.")
     @GetMapping("")
@@ -40,13 +40,13 @@ class ShoppingCartController(
 
     @Operation(summary = "Pay a shopping cart", description = "Marks the cart as paid and publishes a cart.paid event. Requires ownership of the cart or the ADMIN role.")
     @PostMapping("/{id}/pay")
-    fun pay(@PathVariable id: UUID): ResponseEntity<ShoppingCartResultDTO> =
-        ResponseEntity.ok(shoppingCartService.pay(id))
+    fun pay(@PathVariable id: ShoppingCartId): ResponseEntity<ShoppingCartResultDTO> =
+        ResponseEntity.ok(shoppingCartService.pay(id.value))
 
     @Operation(summary = "Delete a shopping cart", description = "Deletes a shopping cart by its id. Requires ownership of the cart or the ADMIN role.")
     @DeleteMapping("/{id}")
-    fun deleteById(@PathVariable id: UUID): ResponseEntity<Void> {
-        shoppingCartService.deleteById(id)
+    fun deleteById(@PathVariable id: ShoppingCartId): ResponseEntity<Void> {
+        shoppingCartService.deleteById(id.value)
         return ResponseEntity.noContent().build()
     }
 }

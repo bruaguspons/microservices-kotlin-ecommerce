@@ -110,11 +110,11 @@ class UserControllersContractTest {
 
     @Test
     fun duplicateUserIsConflict() {
-        whenever(userService.register(any<RegisterUserCommandDTO>())).thenThrow(UserAlreadyExist("User alredy exists"))
+        whenever(userService.register(any<RegisterUserCommandDTO>())).thenThrow(UserAlreadyExist("User already exists"))
 
         mockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content(REGISTER_BODY))
             .andExpect(status().isConflict())
-            .andExpect(content().string("{\"errorCode\":\"USER_ALREADY_EXISTS\",\"message\":\"User alredy exists\"}"))
+            .andExpect(content().string("{\"errorCode\":\"USER_ALREADY_EXISTS\",\"message\":\"User already exists\"}"))
     }
 
     @Test
@@ -161,9 +161,18 @@ class UserControllersContractTest {
     }
 
     @Test
-    fun malformedUuidPathVariableIsBadRequest() {
+    fun malformedUuidPathVariableIsBadRequestWithInvalidArgumentBody() {
+        val expected = "{\"errorCode\":\"INVALID_ARGUMENT\",\"message\":\"Invalid UUID string: not-a-uuid\"}"
+
         mockMvc.perform(get("/api/users/not-a-uuid").with(jwt()))
             .andExpect(status().isBadRequest())
+            .andExpect(content().string(expected))
+        mockMvc.perform(delete("/api/users/not-a-uuid").with(jwt()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string(expected))
+        mockMvc.perform(patch("/api/admin/users/not-a-uuid/role").with(jwt()).contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string(expected))
         verifyNoInteractions(userService)
     }
 

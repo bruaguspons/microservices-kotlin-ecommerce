@@ -26,6 +26,9 @@ class CartPersistenceTest {
     private lateinit var repository: ShoppingCartRepository
 
     @Autowired
+    private lateinit var mapper: ShoppingCartPersistenceMapper
+
+    @Autowired
     private lateinit var entityManager: EntityManager
 
     @Autowired
@@ -95,7 +98,7 @@ class CartPersistenceTest {
     }
 
     @Test
-    fun removingItemDeletesRowByOrphanRemoval() {
+    fun removingItemSoftDeletesRowByOrphanRemoval() {
         val cart = newCart()
         flushAndClear()
         val loaded = repository.findById(cart.id!!).orElseThrow()
@@ -110,8 +113,14 @@ class CartPersistenceTest {
 
         assertThat(repository.findById(cart.id!!).orElseThrow().items).isEmpty()
         assertThat(
-            jdbc.queryForObject("select count(*) from product_shopping_cart where shopping_cart_id = ?", Int::class.javaObjectType, cart.id!!.value),
+            jdbc.queryForObject(
+                "select count(*) from product_shopping_cart where is_deleted = false and shopping_cart_id = ?",
+                Int::class.javaObjectType, cart.id!!.value,
+            ),
         ).isZero()
+        assertThat(
+            jdbc.queryForObject("select count(*) from product_shopping_cart where is_deleted = true and shopping_cart_id = ?", Int::class.javaObjectType, cart.id!!.value),
+        ).isEqualTo(1)
     }
 
     @Test
@@ -139,7 +148,7 @@ class CartPersistenceTest {
     }
 
     @Test
-    fun deleteByIdCascadesAndRemovesRowsPhysicallyCurrentBehavior() {
+    fun deleteByIdSoftDeletesCartAndItems() {
         val cart = newCart()
         flushAndClear()
         val loaded = repository.findById(cart.id!!).orElseThrow()
@@ -151,14 +160,46 @@ class CartPersistenceTest {
         flushAndClear()
 
         assertThat(repository.findById(cart.id!!)).isEmpty()
-        assertThat(jdbc.queryForObject("select count(*) from shopping_cart where id = ?", Int::class.javaObjectType, cart.id!!.value)).isZero()
+        assertThat(repository.findAll().map { it.id }).doesNotContain(cart.id)
+        assertThat(repository.findOpenCartsContainingProduct(P1).map { it.id }).doesNotContain(cart.id)
+        assertThat(jdbc.queryForObject("select is_deleted from shopping_cart where id = ?", Boolean::class.javaObjectType, cart.id!!.value)).isTrue()
         assertThat(
-            jdbc.queryForObject("select count(*) from product_shopping_cart where shopping_cart_id = ?", Int::class.javaObjectType, cart.id!!.value),
-        ).isZero()
+            jdbc.queryForObject(
+                "select count(*) from product_shopping_cart where is_deleted = true and shopping_cart_id = ?",
+                Int::class.javaObjectType, cart.id!!.value,
+            ),
+        ).isEqualTo(1)
     }
 
     @Test
-    fun softDeleteFlagIsNotFilteredCurrentBehavior() {
+    fun createAndModifyInTheSameTransactionDoesNotFail() {
+        // No flush/clear between the calls: the second save maps onto the entity created by the first.
+        val cart = newCart()
+        val loaded = repository.findById(cart.id!!).orElseThrow()
+        loaded.addItem(P1, 2, BigDecimal("3.00"), 1L)
+        repository.save(loaded)
+        val reloaded = repository.findById(cart.id!!).orElseThrow()
+        reloaded.addItem(P2, 1, BigDecimal("1.00"), 1L)
+        repository.save(reloaded)
+        flushAndClear()
+
+        val result = repository.findById(cart.id!!).orElseThrow()
+        assertThat(result.items!!.map { it.productId }).containsExactlyInAnyOrder(P1, P2)
+    }
+
+    @Test
+    fun mapperProducesMutableItemCollection() {
+        val domain = newCart()
+        domain.addItem(P1, 1, BigDecimal.ONE, 0L)
+
+        val entity = mapper.toEntity(domain)
+
+        entity.items!!.clear()
+        assertThat(entity.items).isEmpty()
+    }
+
+    @Test
+    fun rowsFlaggedAsDeletedAreInvisibleToReads() {
         val flagged = ShoppingCart.reconstitute(
             ShoppingCartId.emptyValue(), null, null, null, null, null, true,
             BigDecimal.ZERO, false, UserId.of(UUID.randomUUID()), ArrayList(),
@@ -167,8 +208,8 @@ class CartPersistenceTest {
         flushAndClear()
 
         assertThat(saved.isDeleted).isTrue()
-        assertThat(repository.findById(saved.id!!)).isPresent()
-        assertThat(repository.findAll().map { it.id }).contains(saved.id)
+        assertThat(repository.findById(saved.id!!)).isEmpty()
+        assertThat(repository.findAll().map { it.id }).doesNotContain(saved.id)
     }
 
     companion object {

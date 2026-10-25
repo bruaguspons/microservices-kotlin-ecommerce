@@ -7,6 +7,7 @@ import com.example.ecommerce.cart.application.dto.result.ProductShoppingCartResu
 import com.example.ecommerce.cart.application.dto.result.ShoppingCartResultDTO
 import com.example.ecommerce.cart.application.exception.ProductShoppingCartNotFoundException
 import com.example.ecommerce.cart.application.exception.ShoppingCartNotFoundException
+import com.example.ecommerce.cart.application.exception.UserNotFoundException
 import com.example.ecommerce.cart.application.port.`in`.ShoppingCartServicePort
 import com.example.ecommerce.cart.application.port.out.ShoppingCartRepositoryPort
 import com.example.ecommerce.cart.application.port.out.client.ProductClientPort
@@ -52,9 +53,12 @@ class ShoppingCartServiceImpl(
         // Validate the user exists via user-service before persisting, per design:
         // "cart-service validates UserId exists via UserClientPort.exists(UserId) at
         // cart-creation time only (not on every operation, to avoid chatty calls)".
-        userClient.exists(UserId.of(cmd.userId))
+        val userId = UserId.of(cmd.userId)
+        if (!userClient.exists(userId)) {
+            throw UserNotFoundException("User not found with id: ${userId.value}")
+        }
 
-        val shoppingCart = ShoppingCart.create(UserId.of(cmd.userId))
+        val shoppingCart = ShoppingCart.create(userId)
         return ShoppingCartResultDTO.from(repository.save(shoppingCart))
     }
 
@@ -129,13 +133,21 @@ class ShoppingCartServiceImpl(
      * still conflicts after all retries is logged at WARN and skipped (never
      * crashes the listener thread, never blocks other carts).
      *
-     * Intentionally NOT `@Transactional` at this level: each retry
-     * attempt runs in its own fresh `REQUIRES_NEW` transaction via
+     * This method is only a read-only transaction so the lazily loaded line
+     * items of the affected carts can be mapped to the domain. It never writes:
+     * each update attempt runs in its own fresh `REQUIRES_NEW` transaction via
      * [CartPriceUpdateAttempt], so a failed flush on one attempt never
      * poisons the persistence context of the next attempt (see that class's
      * KDoc for why).
+     *
+     * A `null` product id is ignored (no-op): there is nothing to update.
      */
+    @Transactional(readOnly = true)
     override fun handleProductPriceChanged(productId: UUID?, newPrice: BigDecimal?, version: Long) {
+        if (productId == null) {
+            log.warn("Ignoring price change without a product id")
+            return
+        }
         val id = ProductId.of(productId)
         val affectedCarts = repository.findOpenCartsContainingProduct(id)
 

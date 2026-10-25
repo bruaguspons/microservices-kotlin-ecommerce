@@ -4,6 +4,7 @@ import com.example.ecommerce.user.application.dto.command.AdminCreateUserCommand
 import com.example.ecommerce.user.application.dto.command.ChangeUserRoleCommandDTO
 import com.example.ecommerce.user.application.dto.result.UserResultDTO
 import com.example.ecommerce.user.application.port.`in`.UserServicePort
+import com.example.ecommerce.user.domain.valueobject.UserId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.UUID
 
 /**
  * ADMIN-only user-management endpoints, kept separate from [UserController] because
@@ -49,6 +49,6 @@ class AdminUserController(
      */
     @Operation(summary = "Change a user's role", description = "Admin only. Changes the role of an existing user.")
     @PatchMapping("/{id}/role")
-    fun changeRole(@PathVariable id: UUID, @Valid @RequestBody cmd: ChangeUserRoleCommandDTO): ResponseEntity<UserResultDTO> =
-        ResponseEntity.ok(userService.changeRole(id, cmd))
+    fun changeRole(@PathVariable id: UserId, @Valid @RequestBody cmd: ChangeUserRoleCommandDTO): ResponseEntity<UserResultDTO> =
+        ResponseEntity.ok(userService.changeRole(id.value!!, cmd))
 }

@@ -13,6 +13,7 @@ data class Email(val value: String?) {
     companion object {
         private val EMAIL_REGEX = Regex(
             "[a-z0-9!#\$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#\$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?",
+            RegexOption.IGNORE_CASE,
         )
 
         @JvmStatic

@@ -1,4 +1,4 @@
-package com.example.ecommerce.shared.domain.model
+package com.example.ecommerce.buildingblocks.domain
 
 import java.time.LocalDateTime
 import java.util.UUID

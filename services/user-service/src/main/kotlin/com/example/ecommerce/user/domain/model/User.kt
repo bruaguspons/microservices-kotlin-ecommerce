@@ -1,6 +1,6 @@
 package com.example.ecommerce.user.domain.model
 
-import com.example.ecommerce.shared.domain.model.BaseModel
+import com.example.ecommerce.buildingblocks.domain.BaseModel
 import com.example.ecommerce.shared.domain.valueobject.Email
 import com.example.ecommerce.user.domain.enums.UserRole
 import com.example.ecommerce.user.domain.exception.UnderageUserException

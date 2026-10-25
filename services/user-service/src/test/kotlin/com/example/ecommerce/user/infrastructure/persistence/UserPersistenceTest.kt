@@ -84,7 +84,7 @@ class UserPersistenceTest {
     }
 
     @Test
-    fun softDeleteFlaggedRowIsStillVisibleBecauseFilterIsNotEnabledCurrentBehavior() {
+    fun rowsFlaggedAsDeletedAreInvisibleToReads() {
         val deleted = User.reconstitute(
             UserId.emptyValue(), null, null, null, null, null,
             true, "gone2@example.com", "G", "O", 40, "hash", UserRole.USER,
@@ -92,12 +92,13 @@ class UserPersistenceTest {
         val saved = repository.save(deleted)
         flushAndClear()
 
-        assertThat(repository.findById(saved.id!!)).isPresent()
-        assertThat(repository.findAll().map { it.email!!.value }).contains("gone2@example.com")
+        assertThat(repository.findById(saved.id!!)).isEmpty()
+        assertThat(repository.findByEmail(Email("gone2@example.com"))).isEmpty()
+        assertThat(repository.findAll().map { it.email!!.value }).doesNotContain("gone2@example.com")
     }
 
     @Test
-    fun deleteByIdRemovesRowPhysicallyCurrentBehavior() {
+    fun deleteByIdSoftDeletesTheRow() {
         val saved = repository.save(newUser("del@example.com"))
         flushAndClear()
 
@@ -105,9 +106,10 @@ class UserPersistenceTest {
         flushAndClear()
 
         assertThat(repository.findById(saved.id!!)).isEmpty()
+        assertThat(repository.findByEmail(Email("del@example.com"))).isEmpty()
         assertThat(
-            jdbc.queryForObject("select count(*) from users where id = ?", Int::class.javaObjectType, saved.id!!.value),
-        ).isZero()
+            jdbc.queryForObject("select is_deleted from users where id = ?", Boolean::class.javaObjectType, saved.id!!.value),
+        ).isTrue()
     }
 
     @Test

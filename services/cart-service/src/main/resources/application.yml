@@ -54,14 +54,12 @@ resilience4j:
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
         ignore-exceptions:
-          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
+          - com.example.ecommerce.cart.application.exception.ProductNotFoundException
       user-service:
         max-attempts: 3
         wait-duration: 100ms
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
-        ignore-exceptions:
-          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
 
 ---
 spring:

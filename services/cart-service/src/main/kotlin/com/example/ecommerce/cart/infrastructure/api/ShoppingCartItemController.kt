@@ -4,6 +4,8 @@ import com.example.ecommerce.cart.application.dto.command.AddItemCommandDTO
 import com.example.ecommerce.cart.application.dto.command.UpdateItemQuantityCommandDTO
 import com.example.ecommerce.cart.application.dto.result.ProductShoppingCartResultDTO
 import com.example.ecommerce.cart.application.port.`in`.ShoppingCartServicePort
+import com.example.ecommerce.cart.domain.valueobject.ProductShoppingCartId
+import com.example.ecommerce.cart.domain.valueobject.ShoppingCartId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -15,7 +17,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.UUID
 
 /**
  * Line-item operations as RESTful sub-resources under the owning cart (per
@@ -32,22 +33,22 @@ class ShoppingCartItemController(
 
     @Operation(summary = "Add a line item to a cart", description = "Adds a product to the cart, fetching the current price from product-service and snapshotting it. Requires ownership of the cart or the ADMIN role.")
     @PostMapping("")
-    fun addItem(@PathVariable cartId: UUID, @Valid @RequestBody cmd: AddItemCommandDTO): ResponseEntity<ProductShoppingCartResultDTO> =
-        ResponseEntity.ok(shoppingCartService.addItem(cartId, cmd))
+    fun addItem(@PathVariable cartId: ShoppingCartId, @Valid @RequestBody cmd: AddItemCommandDTO): ResponseEntity<ProductShoppingCartResultDTO> =
+        ResponseEntity.ok(shoppingCartService.addItem(cartId.value, cmd))
 
     @Operation(summary = "Update a cart line item's quantity", description = "Partial update: changes only the quantity of an existing line item. Requires ownership of the cart or the ADMIN role.")
     @PatchMapping("/{itemId}")
     fun updateItemQuantity(
-        @PathVariable cartId: UUID,
-        @PathVariable itemId: UUID,
+        @PathVariable cartId: ShoppingCartId,
+        @PathVariable itemId: ProductShoppingCartId,
         @Valid @RequestBody cmd: UpdateItemQuantityCommandDTO,
     ): ResponseEntity<ProductShoppingCartResultDTO> =
-        ResponseEntity.ok(shoppingCartService.updateItemQuantity(cartId, itemId, cmd))
+        ResponseEntity.ok(shoppingCartService.updateItemQuantity(cartId.value, itemId.value, cmd))
 
     @Operation(summary = "Remove a cart line item", description = "Removes a line item from its shopping cart. Requires ownership of the cart or the ADMIN role.")
     @DeleteMapping("/{itemId}")
-    fun removeItem(@PathVariable cartId: UUID, @PathVariable itemId: UUID): ResponseEntity<Void> {
-        shoppingCartService.removeItem(cartId, itemId)
+    fun removeItem(@PathVariable cartId: ShoppingCartId, @PathVariable itemId: ProductShoppingCartId): ResponseEntity<Void> {
+        shoppingCartService.removeItem(cartId.value, itemId.value)
         return ResponseEntity.noContent().build()
     }
 }

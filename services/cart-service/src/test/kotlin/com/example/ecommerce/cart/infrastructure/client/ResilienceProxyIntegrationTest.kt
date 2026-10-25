@@ -129,9 +129,6 @@ class ResilienceProxyIntegrationTest {
             assertThat(retry.retryConfig.maxAttempts).isEqualTo(3)
             assertThat(retry.retryConfig.getIntervalBiFunction<Any?>().apply(1, Either.right<Throwable, Any?>(null))).isEqualTo(100L)
             assertThat(retry.retryConfig.getIntervalBiFunction<Any?>().apply(2, Either.right<Throwable, Any?>(null))).isEqualTo(200L)
-            // WebClientResponseException.NotFound is configured as an ignored (non-retried) exception.
-            val notFound = WebClientResponseException.create(404, "Not Found", HttpHeaders(), ByteArray(0), null)
-            assertThat(retry.retryConfig.exceptionPredicate.test(notFound)).isFalse()
             val serverError = WebClientResponseException.create(500, "Error", HttpHeaders(), ByteArray(0), null)
             assertThat(retry.retryConfig.exceptionPredicate.test(serverError)).isTrue()
         }
@@ -175,19 +172,17 @@ class ResilienceProxyIntegrationTest {
     }
 
     @Test
-    fun product404sAreCountedAsCircuitFailuresCurrentBehavior() {
-        // application.yml ignores cart's ProductNotFoundException, but the annotated bean throws
-        // WebClientResponseException.NotFound, so 404 responses are recorded as failures.
+    fun product404sDoNotCountAsCircuitFailures() {
         PRODUCT_HANDLER.set { status(HttpStatus.NOT_FOUND) }
 
-        for (i in 0 until 5) {
+        for (i in 0 until 10) {
             assertThatThrownBy { productClient.getById(ProductId.of(PRODUCT)) }.isInstanceOf(ProductNotFoundException::class.java)
         }
 
         val breaker = circuitBreakerRegistry.circuitBreaker("product-service")
-        assertThat(breaker.metrics.numberOfFailedCalls).isEqualTo(5)
-        assertThat(breaker.state).isEqualTo(CircuitBreaker.State.OPEN)
-        assertThat(PRODUCT_CALLS).hasValue(5)
+        assertThat(breaker.metrics.numberOfFailedCalls).isZero()
+        assertThat(breaker.state).isEqualTo(CircuitBreaker.State.CLOSED)
+        assertThat(PRODUCT_CALLS).hasValue(10)
     }
 
     @Test
@@ -252,14 +247,17 @@ class ResilienceProxyIntegrationTest {
     }
 
     @Test
-    fun user404IsNotRetriedAndMapsToNotFound() {
+    fun user404ReturnsFalseWithoutRetryAndWithoutCircuitFailure() {
         USER_HANDLER.set { status(HttpStatus.NOT_FOUND) }
 
-        assertThatThrownBy { userClient.exists(UserId.of(USER)) }
-            .isInstanceOf(UserNotFoundException::class.java)
-            .hasMessage("User not found with id: " + USER)
+        for (i in 0 until 10) {
+            assertThat(userClient.exists(UserId.of(USER))).isFalse()
+        }
 
-        assertThat(USER_CALLS).hasValue(1)
+        val breaker = circuitBreakerRegistry.circuitBreaker("user-service")
+        assertThat(breaker.metrics.numberOfFailedCalls).isZero()
+        assertThat(breaker.state).isEqualTo(CircuitBreaker.State.CLOSED)
+        assertThat(USER_CALLS).hasValue(10)
     }
 
     @Test

@@ -6,6 +6,7 @@ import io.github.resilience4j.retry.annotation.Retry
 import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientResponseException
 
 /**
  * Low-level Resilience4j-wrapped HTTP call to user-service. Separate bean
@@ -24,16 +25,22 @@ class UserServiceHttpClient(
     @Retry(name = "user-service")
     fun exists(id: UserId): Boolean {
         val authHeader = CurrentRequestAuth.header()
-        userServiceWebClient.get()
-            .uri("/api/users/{id}", id.value)
-            .headers { headers ->
-                if (authHeader != null) {
-                    headers.set(HttpHeaders.AUTHORIZATION, authHeader)
+        return try {
+            userServiceWebClient.get()
+                .uri("/api/users/{id}", id.value)
+                .headers { headers ->
+                    if (authHeader != null) {
+                        headers.set(HttpHeaders.AUTHORIZATION, authHeader)
+                    }
                 }
-            }
-            .retrieve()
-            .toBodilessEntity()
-            .block()
-        return true
+                .retrieve()
+                .toBodilessEntity()
+                .block()
+            true
+        } catch (ex: WebClientResponseException.NotFound) {
+            // A 404 is a valid answer ("no such user"), not a failure: returning normally keeps
+            // it out of the circuit-breaker failure rate and out of the retry loop.
+            false
+        }
     }
 }

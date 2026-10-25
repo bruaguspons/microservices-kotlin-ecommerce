@@ -2,7 +2,6 @@ package com.example.ecommerce.cart.infrastructure.client
 
 import com.example.ecommerce.cart.application.exception.ProductNotFoundException
 import com.example.ecommerce.cart.application.exception.ProductUnavailableException
-import com.example.ecommerce.cart.application.exception.UserNotFoundException
 import com.example.ecommerce.cart.application.exception.UserUnavailableException
 import com.example.ecommerce.cart.application.port.out.client.ProductPriceResultDTO
 import com.example.ecommerce.cart.domain.valueobject.ProductId
@@ -48,8 +47,8 @@ class WebClientAdaptersTest {
     }
 
     @Test
-    fun product404MapsToNotFoundWithIdValueInMessage() {
-        whenever(productHttp.fetch(any<ProductId>())).thenThrow(WebClientResponseException.create(404, "Not Found", HttpHeaders(), ByteArray(0), null))
+    fun productNotFoundIsPassedThroughAsNotFound() {
+        whenever(productHttp.fetch(any<ProductId>())).thenThrow(ProductNotFoundException("Product not found with id: " + PRODUCT))
 
         assertThatThrownBy { productAdapter.getById(ProductId.of(PRODUCT)) }
             .isInstanceOf(ProductNotFoundException::class.java)
@@ -99,12 +98,10 @@ class WebClientAdaptersTest {
     }
 
     @Test
-    fun user404MapsToNotFound() {
-        whenever(userHttp.exists(any<UserId>())).thenThrow(WebClientResponseException.create(404, "Not Found", HttpHeaders(), ByteArray(0), null))
+    fun userExistsFalseIsPassedThrough() {
+        whenever(userHttp.exists(UserId.of(USER))).thenReturn(false)
 
-        assertThatThrownBy { userAdapter.exists(UserId.of(USER)) }
-            .isInstanceOf(UserNotFoundException::class.java)
-            .hasMessage("User not found with id: " + USER)
+        assertThat(userAdapter.exists(UserId.of(USER))).isFalse()
     }
 
     @Test

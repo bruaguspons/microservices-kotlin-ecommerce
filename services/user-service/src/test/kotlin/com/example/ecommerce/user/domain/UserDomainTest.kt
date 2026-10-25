@@ -84,8 +84,7 @@ class UserDomainTest {
         assertThat(Email.of("john.doe+tag@example.co.uk").value).isEqualTo("john.doe+tag@example.co.uk")
         assertThatThrownBy { Email.of(null) }.isInstanceOf(IllegalArgumentException::class.java).hasMessage("Email cannot be null or blank")
         assertThatThrownBy { Email.of("  ") }.isInstanceOf(IllegalArgumentException::class.java).hasMessage("Email cannot be null or blank")
-        // Uppercase letters are rejected by the regex (current behavior).
-        assertThatThrownBy { Email.of("John@Example.com") }.isInstanceOf(IllegalArgumentException::class.java).hasMessage("Email is not valid")
+        assertThat(Email.of("John@Example.com").value).isEqualTo("John@Example.com")
         assertThatThrownBy { Email.of("a@b") }.isInstanceOf(IllegalArgumentException::class.java).hasMessage("Email is not valid")
     }
 

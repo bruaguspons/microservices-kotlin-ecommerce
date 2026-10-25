@@ -57,7 +57,7 @@ class UserServiceImpl(
     @Transactional
     override fun register(user: RegisterUserCommandDTO): UserResultDTO {
         if (userRepository.findByEmail(Email.of(user.email)).isPresent) {
-            throw UserAlreadyExist("User alredy exists")
+            throw UserAlreadyExist("User already exists")
         }
 
         val created = User.create(
@@ -113,7 +113,7 @@ class UserServiceImpl(
     @Transactional
     override fun createByAdmin(cmd: AdminCreateUserCommandDTO): UserResultDTO {
         if (userRepository.findByEmail(Email.of(cmd.email)).isPresent) {
-            throw UserAlreadyExist("User alredy exists")
+            throw UserAlreadyExist("User already exists")
         }
 
         val created = User.create(

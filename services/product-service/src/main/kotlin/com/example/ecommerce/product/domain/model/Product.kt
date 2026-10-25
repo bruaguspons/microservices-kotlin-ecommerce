@@ -3,7 +3,7 @@ package com.example.ecommerce.product.domain.model
 import com.example.ecommerce.product.domain.enums.ProductCategory
 import com.example.ecommerce.product.domain.exception.InvalidPriceException
 import com.example.ecommerce.product.domain.valueobject.ProductId
-import com.example.ecommerce.shared.domain.model.BaseModel
+import com.example.ecommerce.buildingblocks.domain.BaseModel
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID

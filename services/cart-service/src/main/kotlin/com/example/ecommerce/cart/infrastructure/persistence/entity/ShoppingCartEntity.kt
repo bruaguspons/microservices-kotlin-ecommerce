@@ -1,11 +1,13 @@
 package com.example.ecommerce.cart.infrastructure.persistence.entity
 
-import com.example.ecommerce.shared.infrastructure.persistance.entity.BaseEntity
+import com.example.ecommerce.buildingblocks.persistence.BaseEntity
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import org.hibernate.annotations.SQLDelete
+import org.hibernate.annotations.SQLRestriction
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID
@@ -18,6 +20,8 @@ import java.util.UUID
  */
 @Entity
 @Table(name = "shopping_cart")
+@SQLDelete(sql = "UPDATE shopping_cart SET is_deleted = true WHERE id = ? AND version = ?")
+@SQLRestriction("is_deleted = false")
 class ShoppingCartEntity(
     id: UUID? = null,
     createdAt: LocalDateTime? = null,

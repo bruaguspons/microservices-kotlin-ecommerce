@@ -1,4 +1,4 @@
-package com.example.ecommerce.shared.infrastructure.persistance.entity
+package com.example.ecommerce.buildingblocks.persistence
 
 import jakarta.persistence.Column
 import jakarta.persistence.EntityListeners
@@ -7,9 +7,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.MappedSuperclass
 import jakarta.persistence.Version
-import org.hibernate.annotations.Filter
-import org.hibernate.annotations.FilterDef
-import org.hibernate.annotations.ParamDef
 import org.springframework.data.annotation.CreatedBy
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedBy
@@ -20,8 +17,6 @@ import java.util.UUID
 
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener::class)
-@FilterDef(name = "softDeleteFilter", parameters = [ParamDef(name = "isDeleted", type = Boolean::class)])
-@Filter(name = "softDeleteFilter", condition = "is_deleted = :isDeleted")
 abstract class BaseEntity(
     id: UUID? = null,
     createdAt: LocalDateTime? = null,

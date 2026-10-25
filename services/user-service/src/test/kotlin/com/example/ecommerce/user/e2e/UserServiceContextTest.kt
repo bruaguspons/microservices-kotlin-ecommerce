@@ -149,7 +149,7 @@ class UserServiceContextTest {
         )
             .andExpect(status().isConflict())
             .andExpect(jsonPath("\$.errorCode").value("USER_ALREADY_EXISTS"))
-            .andExpect(jsonPath("\$.message").value("User alredy exists"))
+            .andExpect(jsonPath("\$.message").value("User already exists"))
     }
 
     @Test
@@ -263,12 +263,12 @@ class UserServiceContextTest {
     }
 
     @Test
-    fun deleteRemovesRowAndWritesUserDeletedOutboxRow() {
+    fun deleteSoftDeletesRowAndWritesUserDeletedOutboxRow() {
         val ann = register("delete-ann@example.com")
 
         mockMvc.perform(delete("/api/users/{id}", ann).with(asRole("USER", ann))).andExpect(status().isNoContent())
 
-        assertThat(jdbc.queryForObject("select count(*) from users where id = ?", Int::class.javaObjectType, ann)).isZero()
+        assertThat(jdbc.queryForObject("select is_deleted from users where id = ?", Boolean::class.javaObjectType, ann)).isTrue()
         val payloads = jdbc.queryForList(
             "select payload from outbox_message where event_type = 'user.deleted' and payload like ?", String::class.java, "%" + ann + "%",
         )

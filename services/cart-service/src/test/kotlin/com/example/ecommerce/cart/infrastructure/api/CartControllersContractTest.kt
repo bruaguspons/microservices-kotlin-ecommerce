@@ -97,6 +97,22 @@ class CartControllersContractTest {
     }
 
     @Test
+    fun malformedIdsReturnInvalidArgumentBody() {
+        val expected = "{\"errorCode\":\"INVALID_ARGUMENT\",\"message\":\"Invalid UUID string: not-a-uuid\"}"
+
+        mockMvc.perform(get("/api/shopping-carts/not-a-uuid").with(jwt()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string(expected))
+        mockMvc.perform(post("/api/shopping-carts/not-a-uuid/pay").with(jwt()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string(expected))
+        mockMvc.perform(delete("/api/shopping-carts/{cartId}/items/not-a-uuid", CART).with(jwt()))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string(expected))
+        verifyNoInteractions(cartService)
+    }
+
+    @Test
     fun cartNotFoundIs404WithEnvelope() {
         whenever(cartService.findById(CART)).thenThrow(ShoppingCartNotFoundException("Shopping cart not found"))
 

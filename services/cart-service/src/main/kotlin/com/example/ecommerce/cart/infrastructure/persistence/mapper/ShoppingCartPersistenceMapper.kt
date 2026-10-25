@@ -22,10 +22,9 @@ class ShoppingCartPersistenceMapper(
         total = sc.total,
         payed = sc.payed,
         userId = sc.userId!!.value,
-        // Stream.toList() on purpose: produces an unmodifiable list.
-        items = sc.items!!.stream()
+        items = sc.items!!
             .map { itemMapper.toEntity(it) }
-            .toList(),
+            .toMutableList(),
     )
 
     fun toDomain(sc: ShoppingCartEntity): ShoppingCart = ShoppingCart.reconstitute(

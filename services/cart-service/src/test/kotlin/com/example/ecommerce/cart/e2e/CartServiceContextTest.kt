@@ -11,7 +11,6 @@ import com.example.ecommerce.cart.domain.valueobject.UserId
 import com.example.ecommerce.cart.infrastructure.config.DataSeeder
 import com.example.ecommerce.cart.infrastructure.security.OwnershipGuard
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
@@ -236,29 +235,55 @@ class CartServiceContextTest {
     }
 
     @Test
-    fun deleteRemovesCartPhysically() {
+    fun createFailsWithUserNotFoundWhenUserDoesNotExist() {
+        val user = UUID.randomUUID()
+        whenever(userClient.exists(any<UserId>())).thenReturn(false)
+
+        mockMvc.perform(
+            post("/api/shopping-carts").with(asRole("USER", user)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + user + "\"}"),
+        )
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("\$.errorCode").value("USER_NOT_FOUND"))
+
+        assertThat(jdbc.queryForObject("select count(*) from shopping_cart where user_id = ?", Int::class.javaObjectType, user)).isZero()
+    }
+
+    @Test
+    fun deleteSoftDeletesCartAndHidesItFromReads() {
         val user = UUID.randomUUID()
         val cart = createCart(user)
 
         mockMvc.perform(delete("/api/shopping-carts/{c}", cart).with(asRole("USER", user))).andExpect(status().isNoContent())
 
-        assertThat(jdbc.queryForObject("select count(*) from shopping_cart where id = ?", Int::class.javaObjectType, cart)).isZero()
+        assertThat(jdbc.queryForObject("select is_deleted from shopping_cart where id = ?", Boolean::class.javaObjectType, cart)).isTrue()
+        mockMvc.perform(get("/api/shopping-carts/{c}", cart).with(asRole("ADMIN", user))).andExpect(status().isNotFound())
     }
 
     @Test
-    fun productPriceChangedHandlerFailsWithLazyInitializationCurrentBehavior() {
-        // handleProductPriceChanged is not transactional: the open-carts query result is mapped to the domain
-        // outside a session, so the lazy items collection cannot be initialized. The Rabbit listener swallows this.
+    fun malformedCartIdReturnsInvalidArgumentBody() {
+        mockMvc.perform(get("/api/shopping-carts/not-a-uuid").with(asRole("ADMIN", UUID.randomUUID())))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("\$.errorCode").value("INVALID_ARGUMENT"))
+    }
+
+    @Test
+    fun productPriceChangedHandlerUpdatesPriceOfOpenCarts() {
         val user = UUID.randomUUID()
         val product = UUID.randomUUID()
         val cart = createCart(user)
         addItem(user, cart, product, 2, "10.00", 5L)
 
-        assertThatThrownBy { cartService.handleProductPriceChanged(product, BigDecimal("12.00"), 6L) }
-            .hasRootCauseInstanceOf(org.hibernate.LazyInitializationException::class.java)
+        cartService.handleProductPriceChanged(product, BigDecimal("12.00"), 6L)
 
         mockMvc.perform(get("/api/shopping-carts/{c}", cart).with(asRole("USER", user)))
-            .andExpect(jsonPath("\$.total").value(20.00))
+            .andExpect(jsonPath("\$.total").value(24.00))
+            .andExpect(jsonPath("\$.items[0].unitPrice").value(12.00))
+    }
+
+    @Test
+    fun productPriceChangedWithoutProductIdIsASilentNoOp() {
+        cartService.handleProductPriceChanged(null, BigDecimal("1.00"), 1L)
     }
 
     @Test

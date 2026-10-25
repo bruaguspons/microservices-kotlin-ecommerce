@@ -1,12 +1,14 @@
 package com.example.ecommerce.product.infrastructure.persistence.entity
 
 import com.example.ecommerce.product.domain.enums.ProductCategory
-import com.example.ecommerce.shared.infrastructure.persistance.entity.BaseEntity
+import com.example.ecommerce.buildingblocks.persistence.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import org.hibernate.annotations.SQLDelete
+import org.hibernate.annotations.SQLRestriction
 import jakarta.validation.constraints.NotBlank
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -14,6 +16,8 @@ import java.util.UUID
 
 @Entity
 @Table(name = "products")
+@SQLDelete(sql = "UPDATE products SET is_deleted = true WHERE id = ? AND version = ?")
+@SQLRestriction("is_deleted = false")
 class ProductEntity(
     id: UUID? = null,
     createdAt: LocalDateTime? = null,

@@ -147,8 +147,8 @@ class ProductServiceContextTest {
             .andExpect(jsonPath("\$.errorCode").value("PRODUCT_NOT_FOUND"))
             .andExpect(jsonPath("\$.message").value("Product not found with id: ProductId[value=" + id + "]"))
         assertThat(
-            jdbc.queryForObject("select count(*) from products where id = ?", Int::class.javaObjectType, UUID.fromString(id)),
-        ).isZero()
+            jdbc.queryForObject("select is_deleted from products where id = ?", Boolean::class.javaObjectType, UUID.fromString(id)),
+        ).isTrue()
     }
 
     @Test

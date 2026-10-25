@@ -9,7 +9,7 @@ import com.example.ecommerce.cart.domain.valueobject.UserId
 interface UserClientPort {
 
     /**
-     * @throws com.example.ecommerce.cart.application.exception.UserNotFoundException if user-service responds 404
+     * @return `true` if user-service knows the user, `false` if it responds 404
      * @throws com.example.ecommerce.cart.application.exception.UserUnavailableException on timeout, connection failure, or open circuit breaker
      */
     fun exists(id: UserId): Boolean

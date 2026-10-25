@@ -95,7 +95,7 @@ class ProductPersistenceTest {
     }
 
     @Test
-    fun softDeleteFlagRowIsStillVisibleBecauseFilterIsNotEnabledCurrentBehavior() {
+    fun rowsFlaggedAsDeletedAreInvisibleToReads() {
         val deleted = Product.reconstitute(
             ProductId.emptyValue(), null, null, null, null, null, true,
             "gone", "d", BigDecimal("5.00"), "i", ProductCategory.PHONE,
@@ -103,26 +103,27 @@ class ProductPersistenceTest {
         val saved = repository.save(deleted)
         flushAndClear()
 
-        // The softDeleteFilter is declared on BaseEntity but never enabled on the session,
-        // so a row with is_deleted=true is still returned by reads.
         assertThat(saved.isDeleted).isTrue()
-        assertThat(repository.findById(saved.id!!)).isPresent()
-        assertThat(repository.findAll().map { it.name }).contains("gone")
+        assertThat(repository.findById(saved.id!!)).isEmpty()
+        assertThat(repository.findAll().map { it.name }).doesNotContain("gone")
     }
 
     @Test
-    fun deleteByIdRemovesTheRowPhysicallyCurrentBehavior() {
+    fun deleteByIdSoftDeletesTheRow() {
         val saved = repository.save(newProduct("to-delete"))
+        val other = repository.save(newProduct("to-keep"))
         flushAndClear()
 
         repository.deleteById(saved.id!!)
         flushAndClear()
 
         assertThat(repository.findById(saved.id!!)).isEmpty()
-        val rows = jdbc.queryForObject(
-            "select count(*) from products where id = ?", Int::class.javaObjectType, saved.id!!.value,
+        assertThat(repository.findAll().map { it.name }).contains("to-keep").doesNotContain("to-delete")
+        assertThat(repository.findById(other.id!!)).isPresent()
+        val flag = jdbc.queryForObject(
+            "select is_deleted from products where id = ?", Boolean::class.javaObjectType, saved.id!!.value,
         )
-        assertThat(rows).isZero()
+        assertThat(flag).isTrue()
     }
 
     @Test

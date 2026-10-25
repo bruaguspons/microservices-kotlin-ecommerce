@@ -3,7 +3,7 @@ package com.example.ecommerce.cart.domain.model
 import com.example.ecommerce.cart.domain.valueobject.ProductId
 import com.example.ecommerce.cart.domain.valueobject.ProductShoppingCartId
 import com.example.ecommerce.cart.domain.valueobject.ShoppingCartId
-import com.example.ecommerce.shared.domain.model.BaseModel
+import com.example.ecommerce.buildingblocks.domain.BaseModel
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.UUID
