@@ -12,6 +12,9 @@ spring:
     port: ${SPRING_RABBITMQ_PORT:5672}
     publisher-confirm-type: correlated
     publisher-returns: true
+    template:
+      # The outbox relies on returns to detect unroutable events; mandatory must stay true.
+      mandatory: true
 
 server:
   port: 8082

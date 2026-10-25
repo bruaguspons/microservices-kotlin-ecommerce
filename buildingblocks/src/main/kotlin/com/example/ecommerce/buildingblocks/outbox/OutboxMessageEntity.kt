@@ -43,4 +43,8 @@ class OutboxMessageEntity(
 
     @Column(name = "published_at")
     var publishedAt: Instant? = null,
+
+    // NULL = eligible immediately (rows created before backoff/lease existed).
+    @Column(name = "next_attempt_at")
+    var nextAttemptAt: Instant? = null,
 )
